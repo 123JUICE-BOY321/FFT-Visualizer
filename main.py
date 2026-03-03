@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import cv2
 from skimage import data, img_as_float
 
-st.set_page_config(layout="wide", page_title="Filter Design Presentation")
+st.set_page_config(layout="wide", page_title="Filter Design Presentation", initial_sidebar_state="expanded")
 
 @st.cache_data
 def load_image(key):
