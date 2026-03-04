@@ -39,7 +39,7 @@ def make_filter(shape, f_type, D0, order, mode):
 def apply_filter(img, H):
     img32 = img.astype(np.float32)
     F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)
-    F = np.fft.fftshift(F)
+    F = np.fft.fftshift(F, axes=(0, 1)) 
     magF = cv2.magnitude(F[:,:,0], F[:,:,1])
     magF = np.log1p(magF)
     magF = (magF - magF.min()) / (magF.max() - magF.min()) if magF.max() > magF.min() else np.zeros_like(magF)
@@ -48,7 +48,7 @@ def apply_filter(img, H):
     magG = cv2.magnitude(G[:,:,0], G[:,:,1])
     magG = np.log1p(magG)
     magG = (magG - magG.min()) / (magG.max() - magG.min()) if magG.max() > magG.min() else np.zeros_like(magG)
-    G = np.fft.ifftshift(G)
+    G = np.fft.ifftshift(G, axes=(0, 1)) 
     res = cv2.idft(G)
     res = cv2.magnitude(res[:,:,0], res[:,:,1])
     res = cv2.normalize(res, None, 0, 1, cv2.NORM_MINMAX)
@@ -82,15 +82,15 @@ def run_filter_visualization(img_key, f_type, D0, order, mode):
             contours_y=dict(show=True, usecolormap=True, highlightcolor="white"),
             contours_z=dict(show=True, usecolormap=True, highlightcolor="white")
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with right:
         st.markdown("### Processing Stages")
         a, b = st.columns(2)
         c, d = st.columns(2)
-        a.image(img, caption="Original Image", use_container_width=True)
-        b.image(magF, caption="Frequency Spectrum", use_container_width=True)
-        c.image(magG, caption="Filtered Spectrum", use_container_width=True)
-        d.image(res, caption="Filtered Image", use_container_width=True)
+        a.image(img, caption="Original Image", width="stretch")
+        b.image(magF, caption="Frequency Spectrum", width="stretch")
+        c.image(magG, caption="Filtered Spectrum", width="stretch")
+        d.image(res, caption="Filtered Image", width="stretch")
 
     return H
 
@@ -120,97 +120,113 @@ with st.sidebar:
         st.rerun()
     st.markdown("---")
     title = SLIDES[st.session_state.slide_idx]
-    if "Lowpass" in title or "Highpass" in title:
+    if "Lowpass" in title or "Highpass" in title or "Introduction" in title:
         st.header("Controls")
         img_key = st.selectbox("Test Image", ["Cameraman", "Moon", "Text", "Brain (MRI)"])
-        D0 = st.slider("Cutoff Frequency (D0)", 5, 100, 30)
-        order = 1
-        if "Butterworth" in title:
-            order = st.slider("Filter Order (n)", 1, 10, 2)
+        if "Lowpass" in title or "Highpass" in title:
+            D0 = st.slider("Cutoff Frequency (D0)", 5, 100, 30)
+            order = 1
+            if "Butterworth" in title:
+                order = st.slider("Filter Order (n)", 1, 10, 2)
 
 title = SLIDES[st.session_state.slide_idx]
 
-# === 1. INTRODUCTION ===
 if title == "1. Introduction":
-
     st.title("Frequency Domain Filtering")
-
-    st.markdown("""
-Frequency domain filtering analyzes images in terms of their frequency components.
-Instead of modifying pixels directly, we transform the image into the frequency domain,
-modify its spectrum, and transform it back.
-""")
-
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        ### Spatial Domain
+        * Image: $f(x,y)$
+        * $(x,y)$ → pixel coordinates
+        * Processing is performed directly on intensity values
+        """)
+        st.markdown("""
+        ### Frequency Domain
+        * Image: $F(u,v)$
+        * $(u,v)$ → frequency coordinates
+        * Describes rate of intensity variation
+        """)
+    with col2:
+        st.image("Assets/frequency_in_images.png", width="stretch", caption="Frequency in Images")
     st.markdown("---")
-
-    st.subheader("Continuous Fourier Transform")
-
-    st.latex(r"F(u,v)=\int_{-\infty}^{\infty}\int_{-\infty}^{\infty} f(x,y)e^{-j2\pi(ux+vy)}\,dx\,dy")
-
-    st.markdown("""
-This representation decomposes a continuous signal into sinusoidal components of different frequencies.
-However, digital images are discrete and finite.
-""")
-
+    st.markdown("### Convolution Theorem")
+    st.markdown("In spatial domain:")
+    st.latex(r"g(x,y) = f(x,y) * h(x,y)")
+    st.markdown("In frequency domain:")
+    st.latex(r"G(u,v) = F(u,v)\,H(u,v)")
+    st.markdown("""Convolution in spatial domain becomes multiplication in frequency domain.""")
     st.markdown("---")
-
-    st.subheader("Discrete Fourier Transform (DFT)")
-
-    st.latex(r"F(u,v)=\sum_{x=0}^{M-1}\sum_{y=0}^{N-1} f(x,y)e^{-j2\pi\left(\frac{ux}{M}+\frac{vy}{N}\right)}")
-
-    st.markdown("""
-Since images consist of discrete pixels, we use the Discrete Fourier Transform (DFT).
-The Fast Fourier Transform (FFT) is an efficient algorithm to compute this transformation.
-""")
-
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### Fourier Transform")
+        st.latex(r"F(u,v)=\int_{-\infty}^{\infty}\int_{-\infty}^{\infty} f(x,y)e^{-j2\pi(ux+vy)}dxdy")
+        st.markdown("""Represents continuous signals as a sum of complex exponentials.""")
+    with col2:
+        st.markdown("### Inverse Fourier Transform")
+        st.latex(r"f(x,y)=\int_{-\infty}^{\infty}\int_{-\infty}^{\infty} F(u,v)e^{j2\pi(ux+vy)}dudv")
+        st.markdown("""Reconstructs the spatial signal from its frequency components.""")
     st.markdown("---")
-
-    st.subheader("Inverse Transform")
-
-    st.latex(r"f(x,y)=\frac{1}{MN}\sum_{u=0}^{M-1}\sum_{v=0}^{N-1} F(u,v)e^{j2\pi\left(\frac{ux}{M}+\frac{vy}{N}\right)}")
-
-    st.markdown("""
-After modifying the spectrum, we use the inverse DFT to reconstruct the filtered image.
-""")
-
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### Discrete Fourier Transform")
+        st.latex(r"F(u,v)=\sum_{x=0}^{M-1}\sum_{y=0}^{N-1}f(x,y)e^{-j2\pi\left(\frac{ux}{M}+\frac{vy}{N}\right)}")
+    with col2:
+        st.markdown("### Discrete Inverse Fourier Transform")
+        st.latex(r"f(x,y)=\frac{1}{MN}\sum_{u=0}^{M-1}\sum_{v=0}^{N-1}F(u,v)e^{j2\pi\left(\frac{ux}{M}+\frac{vy}{N}\right)}")
+    st.markdown("Images are discrete and finite, so we use the DFT.")
+    st.markdown("""The DFT decomposes the image into discrete frequency components, and the IDFT reconstructs the spatial image.""")
     st.markdown("---")
-
-    st.subheader("Frequency Domain Filtering")
-
-    st.latex(r"G(u,v)=F(u,v)\cdot H(u,v)")
-
-    st.markdown("""
-Filtering becomes multiplication in the frequency domain.
-The transfer function $H(u,v)$ determines which frequencies are preserved or suppressed.
-""")
-
-    st.markdown("---")
-
-    # Visual Demonstration
-    img = load_image("Cameraman")
-    img32 = img.astype(np.float32)
-
-    F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)
-    F = np.fft.fftshift(F)
-
-    magF = cv2.magnitude(F[:,:,0], F[:,:,1])
-    magF = np.log1p(magF)
-    magF = (magF - magF.min()) / (magF.max() - magF.min())
-
-    left, right = st.columns(2)
-
-    with left:
-        st.image(img, use_container_width=True, caption="Spatial Domain (Image)")
-
-    with right:
-        st.image(magF, use_container_width=True, caption="Frequency Domain (Magnitude Spectrum)")
-
-    st.markdown("---")
-
-    st.markdown("""
-Low frequencies are concentrated near the center of the spectrum and represent smooth intensity variations.
-High frequencies appear toward the edges and correspond to sharp transitions and edges.
-""")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("### Steps for Frequency Domain Filtering")
+        st.markdown("""
+        1. Start with image $f(x,y)$  
+        2. Center by multiplying by $(-1)^{x+y}$
+            * Low frequencies appear at the top-left corner.
+                But for image processing we want:
+            * Low frequencies in the center.
+        3. Compute DFT to get $F(u,v)$  
+        4. Multiply by a filter function $H(u,v) \\rightarrow G(u,v) = H(u,v)F(u,v)$  
+        5. Compute Inverse DFT  
+        6. De-center by multiplying again by $(-1)^{x+y}$  
+        7. Take the real part to get the final image  
+        """)
+    with col2:
+        img = load_image(img_key)
+        img32 = img.astype(np.float32)
+        F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)
+        F = np.fft.fftshift(F, axes=(0, 1))
+        magF = cv2.magnitude(F[:,:,0], F[:,:,1])
+        magF = np.log1p(magF)
+        magF = (magF - magF.min()) / (magF.max() - magF.min())
+        col3, col4 = st.columns(2)
+        with col3:
+            st.image(img, width="stretch", caption="Spatial Domain")
+        with col4:
+            st.image(magF, width="stretch", caption="Frequency Domain")
+    with st.expander("Why multiply by $(-1)^{x+y}$ ?"):
+        st.markdown("""
+        Normally in the DFT result:
+        * Low frequencies appear at the top-left corner.
+        * High frequencies appear at the bottom-right corner.\n
+        But for image processing we want:
+        * Low frequencies appear in the center of the spectrum.\n
+        Multiplying by $(-1)^{x+y}$ shifts the spectrum so that the **DC component (zero frequency)** moves to the center.
+        """)
+    # with st.expander("Why use logarithmic transform for the magnitude spectrum?"):
+    #     st.markdown("""
+    #     Normally in the magnitude spectrum:
+    #     * A few frequencies have very large values.
+    #     * Most frequencies have very small values.\n
+    #     This large range makes the spectrum hard to visualize.\n
+    #     Applying
+    #     $$
+    #     \log(1 + |F(u,v)|)
+    #     $$
+    #     compresses the range so more frequency details become visible.
+    #     """)
+    
 
 elif title == "2. Ideal Lowpass":
     st.title("Ideal Lowpass Filter")
@@ -229,11 +245,11 @@ elif title == "2. Ideal Lowpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = (D <= D0).astype(np.float32)\n"
             "H = cv2.merge([H, H])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -241,29 +257,6 @@ elif title == "2. Ideal Lowpass":
     st.markdown("---")
     run_filter_visualization(img_key, "Ideal", D0, order, mode="Lowpass")
     st.markdown("---")
-#     impulse_response = np.fft.ifftshift(H)
-#     h_spatial = np.real(np.fft.ifft2(impulse_response))
-#     h_spatial = h_spatial / np.max(np.abs(h_spatial))
-
-#     center_row = h_spatial[h_spatial.shape[0] // 2, :]
-#     x = np.arange(len(center_row)) - len(center_row)//2
-
-#     r1, r2 = st.columns([1,1.2])
-
-#     with r1:
-#         fig_ring = go.Figure(go.Scatter(x=x, y=center_row))
-#         fig_ring.update_layout(height=280, margin=dict(l=0,r=0,t=30,b=0),
-#                                title="Spatial Impulse Response")
-#         st.plotly_chart(fig_ring, use_container_width=True)
-
-#     with r2:
-#         st.markdown("""
-# The ideal filter has an abrupt frequency cutoff.
-
-# Its inverse Fourier transform produces oscillations that extend infinitely.
-
-# These oscillations appear near edges as ringing artifacts.
-# """)
 
 elif title == "3. Butterworth Lowpass":
     st.title("Butterworth Lowpass Filter")
@@ -283,11 +276,11 @@ elif title == "3. Butterworth Lowpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = 1 / (1 + (D / D0)**(2 * order))\n"
             "H = cv2.merge([H.astype(np.float32), H.astype(np.float32)])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -313,11 +306,11 @@ elif title == "4. Gaussian Lowpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = np.exp(-(D**2) / (2 * D0**2))\n"
             "H = cv2.merge([H.astype(np.float32), H.astype(np.float32)])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -343,11 +336,11 @@ elif title == "5. Ideal Highpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = (D > D0).astype(np.float32)\n"
             "H = cv2.merge([H, H])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -374,11 +367,11 @@ elif title == "6. Butterworth Highpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = 1 / (1 + (D0 / (D + 1e-9))**(2 * order))\n"
             "H = cv2.merge([H.astype(np.float32), H.astype(np.float32)])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -404,11 +397,11 @@ elif title == "7. Gaussian Highpass":
         st.code(
             "img32 = img.astype(np.float32)\n"
             "F = cv2.dft(img32, flags=cv2.DFT_COMPLEX_OUTPUT)\n"
-            "F = np.fft.fftshift(F)\n\n"
+            "F = np.fft.fftshift(F, axes=(0, 1))\n\n"
             "H = 1 - np.exp(-(D**2) / (2 * D0**2))\n"
             "H = cv2.merge([H.astype(np.float32), H.astype(np.float32)])\n\n"
             "G = F * H\n"
-            "G = np.fft.ifftshift(G)\n"
+            "G = np.fft.ifftshift(G, axes=(0, 1))\n"
             "res = cv2.idft(G)\n"
             "res = cv2.magnitude(res[:,:,0], res[:,:,1])",
             language="python"
@@ -418,7 +411,6 @@ elif title == "7. Gaussian Highpass":
     st.markdown("---")
 
 elif title == "8. Conclusion":
-
     st.title("Summary & Comparative Analysis")
 
     st.markdown("""
@@ -427,7 +419,6 @@ Each filter differs in how sharply it transitions between passband and stopband,
 """)
 
     st.markdown("---")
-
     st.subheader("Frequency Response Comparison")
 
     D0 = st.slider("Shared Cutoff Frequency (D0)", 10, 60, 30)
@@ -450,10 +441,9 @@ Each filter differs in how sharply it transitions between passband and stopband,
         height=420
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown("---")
-
     st.subheader("Behavioral Characteristics")
 
     st.markdown("""
@@ -465,7 +455,6 @@ Each filter differs in how sharply it transitions between passband and stopband,
 """)
 
     st.markdown("---")
-
     st.subheader("Key Insight")
 
     st.markdown("""
