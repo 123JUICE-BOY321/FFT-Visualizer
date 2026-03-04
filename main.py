@@ -255,8 +255,34 @@ elif title == "2. Ideal Lowpass":
             language="python"
         )
     st.markdown("---")
-    run_filter_visualization(img_key, "Ideal", D0, order, mode="Lowpass")
+    H = run_filter_visualization(img_key, "Ideal", D0, order, mode="Lowpass")
     st.markdown("---")
+    impulse_response = np.fft.ifftshift(H, axes=(0, 1))
+    h_spatial = np.fft.ifft2(impulse_response)
+    h_spatial = np.fft.fftshift(h_spatial, axes=(0, 1))
+    h_spatial = np.real(h_spatial)
+    h_spatial = h_spatial / np.max(np.abs(h_spatial))
+    center_row = h_spatial[h_spatial.shape[0] // 2, :]
+    x = np.arange(len(center_row)) - len(center_row) // 2
+    r1, r2 = st.columns([1, 1.2])
+    with r1:
+        st.markdown("### Spatial Impulse Response")
+        fig_ring = go.Figure(go.Scatter(x=x, y=center_row, line=dict(color="#ff4b4b")))
+        fig_ring.update_layout(
+            height=300, 
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_title="Distance from Center (pixels)",
+            yaxis_title="Amplitude"
+        )
+        st.plotly_chart(fig_ring, use_container_width=True)
+    with r2:
+        st.markdown("### The Gibbs Phenomenon (Ringing)")
+        st.markdown("""
+        * **Cause:** Ideal filters have a sharp frequency cutoff.
+        * **Result:** The inverse transform becomes a **sinc function** (left) that extends infinitely in the spatial domain.
+        * **Effect:** Ripples appear around edges, producing **ringing artifacts**.
+        """)
+        st.latex(r"sinc(x) = \frac{\sin(\pi x)}{\pi x}")
 
 elif title == "3. Butterworth Lowpass":
     st.title("Butterworth Lowpass Filter")
