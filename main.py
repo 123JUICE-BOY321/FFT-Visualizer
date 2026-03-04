@@ -183,9 +183,6 @@ if title == "1. Introduction":
         st.markdown("""
         1. Start with image $f(x,y)$  
         2. Center by multiplying by $(-1)^{x+y}$
-            * Low frequencies appear at the top-left corner.
-                But for image processing we want:
-            * Low frequencies in the center.
         3. Compute DFT to get $F(u,v)$  
         4. Multiply by a filter function $H(u,v) \\rightarrow G(u,v) = H(u,v)F(u,v)$  
         5. Compute Inverse DFT  
